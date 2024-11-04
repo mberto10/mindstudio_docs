@@ -1,3 +1,155 @@
-## 
+The MindStudio Workflow Notation System provides a standardized way to design, document, and communicate workflow architectures for MindStudio. This notation system serves as an abstraction layer, allowing rapid prototyping and discussion of workflows before implementation.
+
+## Core Principles
+
+1. **Sequential Flow**: All workflows must follow a sequential execution path, with clear data flow between blocks
+2. **Variable Persistence**: Variables created in blocks persist throughout the workflow
+3. **Conditional Logic**: Branch execution using logic blocks rather than temporary variables
+4. **Visual Clarity**: Color coding and standardized sections make workflows easily readable
+
+## Variable Reference
+
+- Use `{{varName}}` to reference variables
+
+## Block Types
+
+### Logic Block
+
+```mermaid
+graph TD
+    classDef logic fill:#ffecb3,stroke:#ffa000
+
+    A["#logic|id:lg1
+    condition: {inputVar} contains 'error'
+    trueBlock: block2
+    falseBlock: block3"]:::logic
+
+```
+
+**Required Properties**
+
+- condition: Logical expression
+- trueBlock: Next block ID if true
+- falseBlock: Next block ID if false
+
+### Text Generation
+
+```mermaid
+graph TD
+    classDef generateText fill:#e1f5fe,stroke:#01579b
+
+    A["#generateText|id:gt1
+    prompt: Your prompt here
+    temp: 0.7
+    model: gpt-4|claude-2|gemini-pro
+    maxTokens: 4000
+    var: outputVar"]:::generateText
+
+```
+
+**Required Properties**
+
+- prompt: Text prompt for generation
+- temp: Temperature (0.0-1.0)
+- model: LLM model identifier
+- maxTokens: Maximum output tokens
+- var: Output variable name
+
+### Function Blocks
+
+```mermaid
+graph TD
+    classDef function fill:#fbe9e7,stroke:#bf360c
+
+    A["#function|id:exa1
+    name: exaSearch
+    ---DESC---
+    purpose: Neural search engine
+    features: web search, summarization
+    input: search query
+    output: structured results
+    ---CONFIG---
+    apiKey: {SECRET}
+    query: {searchQuery}
+    type: neural
+    numResults: 10
+    ---OUTPUT---
+    var: searchResults
+    format: structured_text"]:::function
+
+```
+
+## Flow Control Example
+
+```mermaid
+graph TD
+    classDef generateText fill:#e1f5fe,stroke:#01579b
+    classDef function fill:#fbe9e7,stroke:#bf360c
+    classDef logic fill:#ffecb3,stroke:#ffa000
+    classDef display fill:#f5f5f5,stroke:#212121
+
+    A[/"Input: query"/]
+    B["#function|id:exa1
+    name: exaSearch
+    ---CONFIG---
+    query: {query}
+    ---OUTPUT---
+    var: searchResults"]:::function
+
+    C["#logic|id:lg1
+    condition: {searchResults} contains 'error'
+    trueBlock: E
+    falseBlock: D"]:::logic
+
+    D["#generateText|id:gt1
+    prompt: Analyze {searchResults}
+    var: analysis"]:::generateText
+
+    E["#display|id:dp1
+    type: error
+    content: Search failed"]:::display
+
+    F["#display|id:dp2
+    type: split
+    content: {analysis}"]:::display
+
+    A --> B --> C
+    C -->|true| E
+    C -->|false| D --> F
+
+```
+
+## Best Practices
+
+**Workflow Design**
+
+1. Start with clear input blocks
+2. Use logic blocks for branching
+3. Maintain clear variable scope
+4. End with appropriate display blocks
+
+**Variable Naming**
+
+- Use descriptive, purpose-indicating names
+- Follow camelCase convention
+- Avoid temporary variables
+- Use clear output variable names
+
+**Error Handling**
+
+- Include logic blocks for error paths
+- Provide user-friendly error displays
+- Log important state changes
+
+When implementing these workflows in MindStudio:
+
+- Each block corresponds to a MindStudio block type
+- Logic blocks translate to conditional routing
+- Function blocks map to custom functions
+- Display blocks determine output presentation
+
+This notation serves as a bridge between high-level workflow design and actual MindStudio implementation, allowing for efficient workflow planning and documentation while maintaining technical accuracy.
+
+##
 
 
