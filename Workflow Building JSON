@@ -1,0 +1,746 @@
+
+# Generating a Full Mindstudio Workflow in JSON
+
+Table of Contents
+- Mindstudio and Mindstudio Blocks
+- JSON Examples of Single Blocks or Workflows
+- Instructions for building the Workflow JSON
+
+
+
+
+## Mindstudio and Mindstudio Blocks
+MindStudio is a no-code AI workflow builder, where users can glue together different action types to build workflows powered by AI models. In MindStudio, workflows can: 
+
+- **Generate text**: this is a core prompt block. It means the prompt gets sent to an AI model, we receive a response back, and such response is either displayed to the user or assigned to a variable to be used later in the workflow. Whenever Assistant override the default model in the Generate text block, Assistant MUST specify the temperature and output size/length, as in the examples below.
+- **Generate image**: these blocks are used to send the prompt to an image model, such as DALL-E 3, to generate an image. It returns a URL, and the workflow can show the content of that URL (the image) in a Display block. Not all workflows need image generation, it’s just an extra when it makes sense.
+- **Generate audio**: use an audio model like Eleven Labs or OpenAI’s TTS to generate narration and save the output in an mp3 files you can then show in Display block. Not all workflows need audio generation, it’s just an extra when it makes sense.
+- **Analyze image**: analyze image block will take in ONE image (from the URL) and analyze it for the given prompt. It cannot take in more than one, and it should stick to a basic prompt to get something from the given image. To use this block, assistant needs to take the URL from the inputs, and the inputs need to include an “image upload”.
+-**Logic Block**: the logic block can be used as a conditional on how to continue the rest of the workflow. It can take various coniditions including variables that will be considered by an ai engine and workflow will continue with the next block in workflow. The logic block can be used as a conditional edge in the workflow.
+- **Custom Function Block**: Users can also implement custom function blocks in mindstudio. Functions are Javascript, vanilla, no import. All variables can be inputted into these functions and the output can be saved as a variable.
+- **Display block**: the display block is a non-interactive block that shows content to the user. The content can be saved in variables (all inputs are saved in variables, and all generate text, generate image, and generate audio blocks can save the output in variables). It’s a static block, and the user cannot interact with it in any way. It’s only used to show something. For example, if we’re generating a blog post, users might want to generate the text (generate text block), image (generate image block), audio narration (generate audio block), save them all as variables, and then display all of these outputs in the display block. The display blocks supports the following: 
+Display an image: Use markdown syntax to display images -> ![]({{imageUrl}})
+Display the audio player <audio src="{{audioUrl, usually coming from the generate audio block}}" controls></audio>
+Markdown formatting is enabled
+- **Terminator blocks**: end session, chat and document revise are the two possible endings for the flow. There are examples for both below.
+
+
+## JSON Examples of Single Blocks or Workflows
+
+### Generate Text
+The “generate text” block is a core component of every workflow in MindStudio. It calls a text / chat completion model from OpenAI, Google, Claude and other providers and gets the completion.
+
+These are all the available models and their JSON name:
+
+| Model/Service Name            | JSON name                      | Max Response Size |
+| ----------------------------- | ------------------------------ | ----------------- |
+| Claude 2.1                    | claude-2                       | 4,096 tokens      |
+| Claude 3 Haiku                | claude-3-haiku                 | 3,072 tokens      |
+| Claude 3 Opus                 | claude-3-opus                  | 4,096 tokens      |
+| Claude 3 Sonnet               | claude-3-sonnet                | 4,096 tokens      |
+| Claude 3.5 Sonnet             | claude-3-5-sonnet              | 8,192 tokens      |
+| Claude Instant                | claude-1                       | 10,000 tokens     |
+| Command R                     | command-r                      | 4,000 tokens      |
+| Command R+                    | command-r-plus                 | 4,000 tokens      |
+| Gemini 1.5 Pro                | gemini-1.5-pro                 | 8,192 chars       |
+| Gemini 1.5 Flash              | gemini-1.5-flash               | 8,192 chars       |
+| Gemini 1.0 Pro                | gemini-pro                     | 2,048 chars       |
+| PaLM 2                        | palm-2                         | 1,024 chars       |
+| Code Llama                    | codellama-34b-instruct         | 2,500 tokens      |
+| Llama 3.1 405B Instruct       | llama-3.1-405b-instruct        | 8,000 tokens      |
+| Llama 3.1 70B Instruct        | llama-3.1-70b-instruct         | 8,000 tokens      |
+| Llama 3.1 8B Instruct         | llama-3.1-8b-instruct          | 8,000 tokens      |
+| Llama 3 70B Instruct          | llama-3-70B-instruct           | 8,000 tokens      |
+| Llama 3 8B Instruct           | llama-3-8b-instruct            | 8,000 tokens      |
+| Llama 2 13B Chat              | llama-2-13b-chat               | 4,096 tokens      |
+| Llama 2 70B Chat              | llama-2-70b-chat               | 4,096 tokens      |
+| Mistral 7B Instruct           | mistral-7b-instruct            | 4,096 tokens      |
+| Mistral Codestral             | mistral-codestral              | 16,000 tokens     |
+| Mistral Codestral Mamba       | mistral-codestral-mamba        | 16,000 tokens     |
+| Mistral Large 2               | mistral-large-2                | 16,000 tokens     |
+| Mistral NeMo                  | mistral-nemo                   | 64,000 tokens     |
+| Mixtral 8x22B Instruct        | mixtral-8x22b-instruct         | 64,000 tokens     |
+| Mixtral 8x7B Instruct         | mixtral-8x7b-instruct          | 4,096 tokens      |
+| GPT-4o                        | gpt-4o                         | 4,096 tokens      |
+| GPT-4o Mini                   | gpt-4o-mini                    | 16,383 tokens     |
+| GPT-4 Turbo                   | gpt-4-turbo                    | 4,096 tokens      |
+| GPT-4                         | gpt-4                          | 4,096 tokens      |
+| GPT-3.5 Turbo                 | gpt-3.5-turbo                  | 4,096 tokens      |
+| GPT-3.5 Instruct              | gpt-3.5-turbo-instruct         | 2,000 tokens      |
+| Sonar Large Chat              | sonar-large-chat               | 32,768 tokens     |
+| Sonar Large Online            | sonar-large-online             | 28,000 tokens     |
+| Sonar Small Chat              | sonar-small-chat               | 32,768 tokens     |
+| Sonar Small Online            | sonar-small-online             | 28,000 tokens     |
+| Reka Core                     | reka-core                      | 128,000 tokens    |
+| Reka Edge                     | reka-edge                      | 128,000 tokens    |
+| Reka Flash                    | reka-flash                     | 128,000 tokens    |
+
+
+Here are examples of Generate Text Blocks
+
+#### Generate text block with display to user (content is shown to the user immediately, not saved as variable. User can continue to the next block after generation is complete)
+
+{"steps":[{"id":"2e0290e7-289c-44ba-9ec6-1788989c0323","type":"userMessage","displayName":"gt - display user - inherit","userMessage":{"mode":"foreground","source":"user","message":"This is a generate text block, with the response behavior set to Display to user. It will display the output of the model (inherited from the main workflow)","destinationVar":""},"__editingData":{"top":"-200.55396857428553px","left":"-156.74432995524032px"},"defaultTransitionId":""}],"refs":{"prompts":{},"functions":{}}}
+
+#### Generate text block with save as variable + override of the base workflow model
+
+{"steps":[{"id":"a28b27ce-c454-4f40-8b30-fab0a553d812","type":"userMessage","displayName":"gt - display user - override","userMessage":{"mode":"background","source":"user","message":"This is a generate text block, with the response behavior set to Display to user. It will display the output of the model, and it's overridden to Gemini 1.5 pro.","modelOverride":{"model":"gemini-1.5-pro","temperature":0.5,"ignorePreamble":false,"maxResponseTokens":4000,"userMessagePrefix":"- Human: ","summarizationEngine":"yai-latest","systemMessagePrefix":"","tokenOverflowStrategy":"prune"},"destinationVar":"the_variable"},"__editingData":{"top":"-200.55396857428553px","left":"0px"},"defaultTransitionId":null}],"refs":{"prompts":{},"functions":{}}}
+
+Note here: if something is saved as variable, it can be used later on, but cannot be sliced. For example, if this prompt saves to the variable “the_variable”, Assistant can refer to the whole response later on with {{the_variable}} but cannot access portions of it, like {{the_variable.title}} - this DOES NOT exist in the editor.
+
+You might be able to use a custom function to systematically extract parts of a variable (for example with a text manipulation function), but this custom function block must completely follow the restrictions on Mindstudio custom function blocks. The oother to get portions of the variable is to ask a Generate Text to get it and save it in a new variable. Useful to segment out keywords from a big blog post in a variable, for example, but seldomly required. The workflow should have the cleanest read and this increases complexity.
+
+#### Notes for the Generate Text Block
+
+All workflows will include at least one Generate Text Block, and it is in fact the most important type of block. When the Assistant decides to override the default model, it needs to make sure: 
+
+- There’s a temperature (“temperature” in JSON) set. Temperature goes from 0 to 1, with creativity increasing with it. Most models should be set between 0.3 and 0.5; 
+- There’s a Max response size (“maxResponseTokens” in JSON) set. Most models go up to 8000 but Assistant can check the right number in the table above for each model. This should be an integer number, no commas, e.g. 2000, 4000, or 8000. 
+
+Without these two values set, the override will fail and the workflow will break.
+
+
+### Example for a logic block
+
+The logic block can be useful for building dynamic branches in workflows.
+
+{"steps":[{"id":"7c0864e1-2306-4d82-8f05-f0d2d6331976","__editingData":{"left":"18.146666666666654px","top":"19.671666666666667px"},"type":"logic","logic":{"cases":[{"id":"8e7363b4-a817-43ce-a1ad-acf4dfc6a244","condition":"{{variable_1}} is true","destinationStepId":""},{"id":"72cad596-a3ad-4e37-aa3e-dca9f0f3a1c0","condition":"{{variable_1}} is not true","destinationStepId":""}],"logicEngineId":"youai-haiku"}}],"refs":{"prompts":{},"functions":{}}}
+## examples
+
+### Example: Generate a blog post workflow (document revise is the endpoint)
+
+{"steps":[{"id":"b81b3dba-4b15-4339-ba63-216005c4f893","chat":{},"type":"editDocument","editDocument":{"requestRevisionMessageTemplate":"Rewrite the following text. Respond with only the revised text and nothing else. Never say things like \"Here is the revised text:\". Never say anything other than the revised text.\n\nText: {{selectedText}}\n\nInstructions: {{instructions}}"},"__editingData":{"top":"817.2022645935649px","left":"151.08330848864028px"},"defaultTransitionId":null},{"id":"2c76aa25-17b7-4f3a-9f8b-d05f390eefca","type":"userInput","userInput":{"prompts":[{"promptId":"ce8b8e6b-1900-4586-bffe-0769b5c2b028","required":true},{"promptId":"7d07e1fa-2d62-4791-a2da-05f22db72b6a","required":true}]},"__editingData":{"top":"-34.085532801767876px","left":"149.43668904877939px"},"defaultTransitionId":"225749f5-3be7-481b-aa9a-0211cb822823"},{"id":"225749f5-3be7-481b-aa9a-0211cb822823","menu":{"prompt":"Do you want to use live data? (the result will be lower quality but more accurate)","options":[{"id":"083d8079-027c-4be4-b97f-685a36d21d1e","label":"Yes","destinationStepId":"3dcd16b9-8a26-4c46-a956-cab571f38d2e"},{"id":"c8699dfb-0c80-4c59-8b9e-98011788b7f1","label":"No","destinationStepId":"8264c721-9813-4fd4-baaa-654dff6740fd"}]},"type":"menu","__editingData":{"top":"137.97818045622404px","left":"151.08330848864028px"}},{"id":"3dcd16b9-8a26-4c46-a956-cab571f38d2e","type":"userMessage","userMessage":{"mode":"background","source":"user","message":"Given the main keyword: {{main_keyword}}, write a long query to search on the web to get more insights on the topic. For example, if the keyword is \"SEO\", the  query could be something like \"SEO statistics, what is SEO, and when to use it\".","destinationVar":"research_query"},"__editingData":{"top":"308.5208333333333px","left":"1.0136881510416806px"},"defaultTransitionId":"03d95f8b-09e4-447d-a245-a599077dc0f1"},{"id":"8264c721-9813-4fd4-baaa-654dff6740fd","type":"userMessage","userMessage":{"mode":"background","source":"user","message":"Given the main keyword: {{main_keyword}}, write a long query to search on the web to get more insights on the topic. For example, if the keyword is \"SEO\", the  query could be something like \"SEO statistics, what is SEO, and when to use it\".","destinationVar":"research_query"},"__editingData":{"top":"308.5208333333333px","left":"308.14960937499995px"},"defaultTransitionId":"b4c8a355-c805-427b-8def-0a0d9019b249"},{"id":"03d95f8b-09e4-447d-a245-a599077dc0f1","type":"userMessage","userMessage":{"mode":"background","source":"user","message":"{{research_query}}","modelOverride":{"config":{"return_citations":"true"},"model":"sonar-large-online","systemMessagePrefix":"- Assistant: ","tokenOverflowStrategy":"prune","userMessagePrefix":"- Human: ","summarizationEngine":"yai-latest","temperature":"1","ignorePreamble":false,"maxResponseTokens":4000},"destinationVar":"research_output"},"__editingData":{"top":"486.18960408569853px","left":"1.013688151041677px"},"defaultTransitionId":"8e3b6703-da50-4bd5-ad03-b40d98108f97"},{"id":"8e3b6703-da50-4bd5-ad03-b40d98108f97","type":"userMessage","userMessage":{"mode":"foreground","source":"user","message":"Main keyword: {{main_keyword}}\nAnd the research on the live web for the keyword: {{research_output}}\nLength: {{length}}\n\nWrite the full article, following all SEO best practices.\n\n## Notes for assistant\n\n- Avoid terms and structures frequently associated with AI generated content. For example, \"in today's ever-changing...\", \"let's dive in...\" \n- Make the article sound as natural and human as possible, aiming for high readability\n- Ensure most of the content is well-structures with titles, subtitles, lists, formatted paragraphs, etc. Do not use one format (for example, lists) too often and keep it varied.","modelOverride":{"config":{"return_images":"true","return_citations":"true"},"model":"sonar-large-online","systemMessagePrefix":"- Assistant: ","tokenOverflowStrategy":"prune","userMessagePrefix":"- Human: ","summarizationEngine":"yai-latest","temperature":"0.5","ignorePreamble":false,"maxResponseTokens":4000},"destinationVar":""},"__editingData":{"top":"645.581px","left":"1.0136881510416806px"},"defaultTransitionId":"b81b3dba-4b15-4339-ba63-216005c4f893"},{"id":"b4c8a355-c805-427b-8def-0a0d9019b249","type":"userMessage","userMessage":{"mode":"background","source":"user","message":"{{research_query}}","modelOverride":{"config":{"return_citations":"true"},"model":"sonar-large-online","systemMessagePrefix":"- Assistant: ","tokenOverflowStrategy":"prune","userMessagePrefix":"- Human: ","summarizationEngine":"yai-latest","temperature":"1","ignorePreamble":false,"maxResponseTokens":4000},"destinationVar":"research_output"},"__editingData":{"top":"486.18960408569853px","left":"308.14960937499995px"},"defaultTransitionId":"78338d92-7cc4-48be-9dc1-6902a433d2aa"},{"id":"78338d92-7cc4-48be-9dc1-6902a433d2aa","type":"userMessage","userMessage":{"mode":"foreground","source":"user","message":"Main keyword: {{main_keyword}}\nAnd the research on the live web for the keyword: {{research_output}}\nLength: {{length}}\n\nWrite the full article, following all SEO best practices.\n\n## Notes for assistant\n\n- Avoid terms and structures frequently associated with AI generated content. For example, \"in today's ever-changing...\", \"let's dive in...\" \n- Make the article sound as natural and human as possible, aiming for high readability\n- Ensure most of the content is well-structures with titles, subtitles, lists, formatted paragraphs, etc. Do not use one format (for example, lists) too often and keep it varied.","destinationVar":""},"__editingData":{"top":"645.581px","left":"308.14960937499995px"},"defaultTransitionId":"b81b3dba-4b15-4339-ba63-216005c4f893"}],"refs":{"prompts":{"ce8b8e6b-1900-4586-bffe-0769b5c2b028":{"id":"ce8b8e6b-1900-4586-bffe-0769b5c2b028","name":"What's the main keyword?","type":"shortText","shortText":{"placeholder":"","featuredImageUrl":""},"loggingEnabled":false,"outputVariable":"main_keyword"},"7d07e1fa-2d62-4791-a2da-05f22db72b6a":{"id":"7d07e1fa-2d62-4791-a2da-05f22db72b6a","name":"How long should it be?","type":"multipleChoiceText","loggingEnabled":false,"outputVariable":"length","multipleChoiceText":{"options":[{"id":"a5e07936-7563-434c-801c-3a7974156665","label":"Short"},{"id":"c28dbc2d-4468-413a-817d-8fe8da8f8fd9","label":"Medium"},{"id":"d56bba22-8934-4787-a82d-205c3b030770","label":"Long "},{"id":"cc86d096-7241-4cbe-9921-e016ee5e131d","label":"Very long "}],"featuredImageUrl":"","allowMultipleSelect":false}}},"functions":{}}}
+
+### Example: Proofread content
+
+{"steps":[{"id":"e51a23e5-9be4-4ca4-8dbb-20d13911e474","chat":{},"type":"chat","__editingData":{"top":"300.4850430671305px","left":"270.00384521982403px"},"defaultTransitionId":null},{"id":"aa56c722-a576-4d6f-bd07-05adea44dcee","type":"userInput","userInput":{"prompts":[{"promptId":"551b2fd1-ff10-47c1-9e2b-2cbffcdb83ba","required":true},{"promptId":"8de427d0-a605-4e97-ace1-b88275e2a3cd","required":true}]},"__editingData":{"top":"-35.631797159907464px","left":"270.00253938648046px"},"defaultTransitionId":"92c65869-e634-4583-a444-23141f010c47"},{"id":"92c65869-e634-4583-a444-23141f010c47","type":"userMessage","userMessage":{"mode":"foreground","source":"user","message":"Here's the text to proofread: \n\n{{proofread_text}}\n\nHuman has these goals in mind for the proofreading sessions: \n\n{{proofread_goals}}","destinationVar":""},"__editingData":{"top":"132.3976004816669px","left":"270.00253938648046px"},"defaultTransitionId":"e51a23e5-9be4-4ca4-8dbb-20d13911e474"}],"refs":{"prompts":{"551b2fd1-ff10-47c1-9e2b-2cbffcdb83ba":{"id":"551b2fd1-ff10-47c1-9e2b-2cbffcdb83ba","name":"Paste in the text to proofread (no length limit within reason)","type":"longText","longText":{"placeholder":"","featuredImageUrl":""},"loggingEnabled":false,"outputVariable":"proofread_text"},"8de427d0-a605-4e97-ace1-b88275e2a3cd":{"id":"8de427d0-a605-4e97-ace1-b88275e2a3cd","name":"What should the AI focus on? (select multiple)","type":"multipleChoiceText","loggingEnabled":false,"outputVariable":"proofread_goals","multipleChoiceText":{"options":[{"id":"b4ac57d8-8fe6-4a02-adac-edf4f6aadd2f","label":"Fix grammar mistakes "},{"id":"1678b57d-1852-4cee-a586-708bbdfe43bc","label":"Improve readability"},{"id":"cce9f2b8-8633-4df7-84d9-5e3db121ea30","label":"Make it sound more professional"},{"id":"6f0064b1-dd7b-45ff-93d8-c70038da910b","label":"Make it longer"},{"id":"294344c6-b14c-4544-83ce-cc4b7093b0ef","label":"Make it shorter"}],"featuredImageUrl":"","allowMultipleSelect":true}}},"functions":{}}}
+
+### Example: Generate an A/B analysis workflow (chat is the endpoint)
+
+{"steps":[{"id":"1e6b246a-e703-4132-8d12-f1ef23784843","chat":{},"type":"chat","__editingData":{"top":"318.88346561846225px","left":"475.5032525323937px"},"defaultTransitionId":null},{"id":"7c2e2a91-f1aa-4102-9d07-71605e89900e","type":"userInput","userInput":{"prompts":[{"promptId":"21bca8b9-5962-4ac1-9b1f-553123e2b888","required":true},{"promptId":"f77db017-1971-4b5d-8e26-ccd93a1efa31","required":true},{"promptId":"96e91890-98ff-4cdf-afae-13cf9757434c","required":true}]},"__editingData":{"top":"-173.69412434895833px","left":"127.72800337879347px"},"defaultTransitionId":"66f4ea18-3fb4-4d1d-8f14-fcaadbd7ee70"},{"id":"25439a9f-f0a7-4acd-97ae-8aa8a7b5a777","type":"userMessage","displayName":"Analysis","userMessage":{"mode":"background","source":"user","message":"Given screenshot 1: {{image_1_vision}}\nand screenshot 2: {{image_2_vision}}\n\nDo the following: \n\n- Estabilish which one is best for the goal: {{goal}} and why.\n- Compile a markdown table with key points for an effective landing page, and add two columns, one for each screenshot. Fill it up to identify which key features are present in each\n- Compile another markdown table and talk about core differences and how the losing screenshot can improve\n\nDo not output jargon or filler content like \"based on my analysis\". Only practical, to-the-point instructions following the request above.","destinationVar":"analysis"},"__editingData":{"top":"-22.862454450958886px","left":"475.5032525323937px"},"defaultTransitionId":"21eb8117-ebb8-470e-9ccf-a118cb7d05ec"},{"id":"66f4ea18-3fb4-4d1d-8f14-fcaadbd7ee70","type":"analyzeImage","displayName":"Rename","analyzeImage":{"prompt":"From the image, identify: \n\n- All main CTAs \n- Colors, fonts, design elements\n- All text components\n- Layout\n- Dividers and HTML elements","imageUrl":"{{image_1}}","destinationVar":"image_1_vision","visionModelOverride":{"model":"gemini-1.5-pro-vision","config":{"temperature":"0.5"}}},"__editingData":{"top":"-173.69412434895833px","left":"293.1146769164199px"},"defaultTransitionId":"ecada58f-a595-45bc-9882-0173687fdf15"},{"id":"ecada58f-a595-45bc-9882-0173687fdf15","type":"analyzeImage","displayName":"Evaluate second image","analyzeImage":{"prompt":"From the image, identify: \n\n- All main CTAs \n- Colors, fonts, design elements\n- All text components\n- Layout\n- Dividers and HTML elements","imageUrl":"{{image_2}}","destinationVar":"image_2_vision","visionModelOverride":{"model":"gemini-1.5-pro-vision","config":{"temperature":"0.6"}}},"__editingData":{"top":"-173.69412434895833px","left":"479.00738645719576px"},"defaultTransitionId":"25439a9f-f0a7-4acd-97ae-8aa8a7b5a777"},{"id":"21eb8117-ebb8-470e-9ccf-a118cb7d05ec","type":"userMessage","displayName":"Display results","userMessage":{"mode":"foreground","source":"system","message":"{{analysis}}\n\n---\n\n### Sources\n\n```\n#### Image 1\nURL: {{image_1}}\nInterpretation (Gemini 1.5 Pro Vision): {{image_1_vision}}\n\n#### Image 2\nURL: {{image_2}}\nInterpretation (Gemini 1.5 Pro Vision): {{image_2_vision}}\n```","destinationVar":""},"__editingData":{"top":"153.0085167585881px","left":"479.00738645719576px"},"defaultTransitionId":"1e6b246a-e703-4132-8d12-f1ef23784843"}],"refs":{"prompts":{"f77db017-1971-4b5d-8e26-ccd93a1efa31":{"id":"f77db017-1971-4b5d-8e26-ccd93a1efa31","name":"Upload the first screenshot","type":"uploadImage","uploadImage":{"featuredImageUrl":""},"loggingEnabled":false,"outputVariable":"image_1"},"96e91890-98ff-4cdf-afae-13cf9757434c":{"id":"96e91890-98ff-4cdf-afae-13cf9757434c","name":"Upload the second screenshot","type":"uploadImage","uploadImage":{"featuredImageUrl":""},"loggingEnabled":false,"outputVariable":"image_2"},"21bca8b9-5962-4ac1-9b1f-553123e2b888":{"id":"21bca8b9-5962-4ac1-9b1f-553123e2b888","name":"What's your goal","type":"longText","longText":{"placeholder":"","featuredImageUrl":""},"loggingEnabled":false,"outputVariable":"goal"}},"functions":{}}}
+
+### Generate Image Blocks
+
+Generate image blocks are the same as generate text blocks. They call one of the available models to generate image, and save the output in a variable. It cannot be directly displayed to the user. The output variable is a URL that can be shown in markdown in the display block, hence displaying the image generated by the model. 
+
+These are the available models: 
+
+| Model/Service Name            | JSON name                      |
+| ----------------------------- | ------------------------------ |
+| DALL-E 2                      | dall-e-2                       |
+| DALL-E 3                      | dall-e-3                       |
+| Stable Diffusion 3            | stable-diffusion-3             |
+| Stable Image Core             | stable-image-core              |
+| Stable Image Ultra            | stable-image-ultra             |
+
+Assistant should only use image generation when it makes sense for the workflow (goal: {{goal}}).
+
+And some examples
+
+#### DALL-E 3 image generation
+
+{"steps":[{"id":"8c0e2fe3-af47-4e20-9b3a-24aded3f6aee","type":"generateImage","__editingData":{"left":"167.00390625px","top":"-261.76490607428553px"},"generateImage":{"prompt":"Generate image with the model DALL-E 3","destinationVar":"save_url_of_result_here","imageModelOverride":{"model":"dall-e-3"}},"defaultTransitionId":"","displayName":"dall-e-3"}],"refs":{"prompts":{},"functions":{}}}
+
+#### Stable diffusion image generation
+
+{"steps":[{"type":"generateImage","generateImage":{"prompt":"Generate image with the model Stable Diffusion 3","destinationVar":"save_url_of_result_here","imageModelOverride":{"model":"stable-diffusion-3"}},"displayName":"sd-3","id":"25e9f390-47f1-4711-b343-f474776d4e58","defaultTransitionId":null,"__editingData":{"left":"167.64905052382966px","top":"-78.80686905893269px"}}],"refs":{"prompts":{},"functions":{}}}
+
+#### Ideogram image generation
+
+Best at generating text, like content for social media.
+
+{"steps":[{"id":"92467771-3086-483b-9296-09dc133ec888","__editingData":{"left":"-13.95183744343093px","top":"132.2952772082534px"},"defaultTransitionId":"","type":"generateImage","generateImage":{"prompt":"","destinationVar":"","imageModelOverride":{"model":"ideogram-v2"}}}],"refs":{"prompts":{},"functions":{}}}
+
+Or for upscaling: 
+
+{"steps":[{"id":"92467771-3086-483b-9296-09dc133ec888","__editingData":{"left":"-13.95183744343093px","top":"132.2952772082534px"},"defaultTransitionId":"","type":"generateImage","generateImage":{"prompt":"","destinationVar":"","imageModelOverride":{"model":"ideogram-upscale","config":{"image_url":"{{required_url_to_upscale}}"}}}}],"refs":{"prompts":{},"functions":{}}}
+
+And for remixing from existing image or template: 
+
+{"steps":[{"id":"92467771-3086-483b-9296-09dc133ec888","__editingData":{"left":"-13.95183744343093px","top":"132.2952772082534px"},"defaultTransitionId":"","type":"generateImage","generateImage":{"prompt":"","destinationVar":"","imageModelOverride":{"model":"ideogram-v2-remix","config":{"image_url":"{{required_url_to_upscale}}"}}}}],"refs":{"prompts":{},"functions":{}}}
+
+### Generate audio
+
+Same as text and image generation, but for audio. It saves the output as URL which can be displayed in the display block with the right format. Assistant should only use audio generation when it makes sense for the workflow. For example, a blog post will benefit from a read aloud, but a simple table or report probably won’t.
+
+| Model/Service Name            | JSON name                      |
+| ----------------------------- | ------------------------------ |
+| ElevenLabs TTS                | elevenlabs-tts                 |
+| TTS                           | tts-1                          |
+| TTS HD                        | tts-1-hd                       |
+
+And some examples:
+
+#### OpenAI’s TTS HD
+
+{"steps":[{"id":"f9323513-7fb6-4a40-b53b-89468e074258","type":"textToSpeech","textToSpeech":{"text":"This is a text to speech block using OpenAI voice models.","destinationVar":"save_audio_url_here_and_then_use_in_display_content","speechModelOverride":{"model":"tts-1-hd","config":{"voice":"echo"}}},"__editingData":{"top":"-272.3020414625041px","left":"546.7289926895152px"},"defaultTransitionId":"","displayName":"openai tts hd"}],"refs":{"prompts":{},"functions":{}}}
+
+Other voices Assistant can use instead of “echo” (JSON names): 
+
+alloy
+fable
+onyx
+nova
+Shimmer
+
+Assistant can choose the voice at random.
+
+#### ElevenLabs 
+
+{"steps":[{"id":"6ae3ca9e-a4a9-458a-84ce-6c3fc2044630","type":"textToSpeech","textToSpeech":{"text":"This is a text to speech block using Eleven Labs voice models.","destinationVar":"save_audio_url_here_and_then_use_in_display_content","speechModelOverride":{"model":"elevenlabs-tts","config":{"voice":"echo"}}},"__editingData":{"top":"-64.11646857428553px","left":"546.203125px"},"defaultTransitionId":null,"displayName":"eleven labs"}],"refs":{"prompts":{},"functions":{}}}
+
+Other voices for the “voice” param: 
+
+Laura
+Charlie
+George
+Callum
+Liam
+Charlotte
+Alice
+Matilda
+Will
+Jessica
+Eric
+Chris
+Brian
+Daniel
+Lily
+Bill
+
+Eleven labs voices are better than OpenAI voices. Prefer these if the human has no cost issues.
+
+Assistant can choose the voice at random.
+
+### Analyze image
+
+The analyze image block uses one of the available vision models. It requires an image input (that’s why there’s an image upload input type option), or a URL. It will prompt the vision model together with the image to get the extraction. An example could be uploading the screenshot of a page and asking the vision model to extrapolate the styling.
+
+These are the available models: 
+
+| Model/Service Name            | JSON name                      |
+| ----------------------------- | ------------------------------ |
+| Gemini 1.5 Pro Vision         | gemini-1.5-pro-vision          |
+| Gemini 1.5 Flash Vision       | gemini-1.5-flash-vision        |
+| Gemini 1.0 Vision             | gemini-pro-vision              |
+| GPT-4o Vision                 | gpt-4o-vision                  |
+| GPT-4o Mini Vision            | gpt-4o-mini-vision             |
+| GPT-4 Turbo Vision            | gpt-4-turbo-vision             |
+
+And some examples: 
+
+#### Gemini 1.5 pro vision example
+
+{"steps":[{"id":"84f5e538-22b9-4bf4-9d85-9e0e1b29c69b","__editingData":{"left":"548.0577221654685px","top":"146.9745567014715px"},"defaultTransitionId":"","type":"analyzeImage","analyzeImage":{"prompt":"Analyze image uses vision models to understand the content of an image. Using Gemini 1.5 Pro Vision but it supports all the vision models in the dropdown.","imageUrl":"{{url_from_input_or_web}}","destinationVar":"the_output_variable","visionModelOverride":{"model":"gemini-1.5-pro-vision"}}}],"refs":{"prompts":{},"functions":{}}}
+
+
+## Instructions for building the Workflow JSON
+
+### Rename blocks
+
+Remember to properly name blocks. All blocks minus the endpoint / terminator can be named. For example: 
+
+{"steps":[{"id":"6ae3ca9e-a4a9-458a-84ce-6c3fc2044630","type":"textToSpeech","displayName":"eleven labs","textToSpeech":{"text":"This is a text to speech block using Eleven Labs voice models.","destinationVar":"save_audio_url_here_and_then_use_in_display_content","speechModelOverride":{"model":"elevenlabs-tts","config":{"voice":"echo"}}},"__editingData":{"top":"-64.11646857428553px","left":"546.203125px"},"defaultTransitionId":null}],"refs":{"prompts":{},"functions":{}}}
+
+This block is named “eleven labs” - under “displayName” in the JSON value pair. Make the name extremely concise, there’s not much space, but still indicative of what the block collects or does.
+
+### Output rules
+
+- The human wants the fully valid JSON to copy-paste in a new app. Assistant won’t include any pre or post text, and only reply with the proper JSON; 
+- Assistant won’t spare details in the prompt. If it needs to make them longer for the sake of improving the workflow, it will; 
+- Assistant won’t make the workflow complex for the sake of it. First and foremost, AI workflows should save time and get to the result as quickly as possible. Add revision steps if necessary, but don’t constantly reiterate on the same concept; 
+- Assume the human won’t edit the workflow at all. This should work out of the box.
+Output the JSON code within a markdown JSON box (```json to initialize it) for easier copy pasting and better visuals.
+
+----- 
+
+### Further Blocks and Custom Functions
+
+### Scrape URL 
+
+MindStudio can scrape URLs using the default scraper or the advanced integration with “Firecrawl”. The scraped content is then saved in a variable that can be referenced in generate text blocks to add context.
+
+Some examples: 
+
+#### Using the default scraper
+
+{"steps":[{"id":"8bc718a9-40c4-4b9b-8508-0018bee2a190","__editingData":{"left":"545.2077582112798px","top":"352.39153295145036px"},"defaultTransitionId":"","type":"scrapeUrl","scrapeUrl":{"url":"https://mindstudio.ai","service":"default","enableExtractor":false,"pageOptions":{"onlyMainContent":true,"includeHtml":true,"screenshot":false,"waitFor":0,"replaceAllPathsWithAbsolutePaths":true,"headers":{},"removeTags":[]},"extractorOptions":{"mode":"llm-extraction","extractionPrompt":"Based on the information on the page, extract the information from the schema."},"destinationVar":"scraped_content"}}],"refs":{"prompts":{},"functions":{}}}
+
+#### Using the Firecrawl scraper
+
+{"steps":[{"id":"5f0aeab6-f25e-49cf-b6d8-ebe506ca13ac","__editingData":{"left":"693px","top":"352.39153295145036px"},"defaultTransitionId":"","type":"scrapeUrl","scrapeUrl":{"url":"https://mindstudio.ai","service":"firecrawl","enableExtractor":false,"pageOptions":{"onlyMainContent":true,"includeHtml":true,"screenshot":false,"waitFor":0,"replaceAllPathsWithAbsolutePaths":true,"headers":{},"removeTags":[]},"extractorOptions":{"mode":"llm-extraction","extractionPrompt":"Based on the information on the page, extract the information from the schema."},"destinationVar":"scraped_content"}}],"refs":{"prompts":{},"functions":{}}}
+
+### Google Search
+
+MindStudio provides a google search block to search for a keyword on Google and get the top results. The keyword can be a variable.
+
+Example:
+
+#### Example of a Google Search
+
+{"steps":[{"id":"1fe19577-8e39-4b37-99db-12f13722b53d","type":"runFunction","runFunction":{"functionId":"472dc49f-3253-402f-8977-113e1db28e1f","configuration":{"query":"google search block","outputVariable":"output_of_the_search"}},"__editingData":{"top":"542.8046875px","left":"336.5px"},"defaultTransitionId":""}],"refs":{"prompts":{},"functions":{"472dc49f-3253-402f-8977-113e1db28e1f":{"simulatorInput":"environment = {\n  config: {\n    query: \"cats\",\n    outputVariable: \"searchResult\"\n  },\n  vars: {}\n}\n","name":"Google Search - Basic","dateLastEdited":"2024-08-28T15:36:55.257Z","code":"/**\n * Get the query.\n *\n * Note: While we could use ai.config.query to get the query,\n * ai.getConfig(configVariableName) will automatically resolve\n * the value if the provided value references another variable.\n *\n * For example, if you just wanted to search for \"cats\" every\n * time this function runs, you could set query to \"cats\" in\n * the function configuration and get it with ai.config.query.\n *\n * But if you to use a User Input block to get a query from\n * a user and save it as variable myQuery, you would type\n * {{myQuery}} in the function configuration. But then\n * ai.config.query would return the literal value \"{{myQuery}}\".\n * ai.getConfig('query'), on the other hand, will automatically\n * resolve {{myQuery}} to whatever the user's query is.\n */\nconst query = ai.getConfig('query');\n\n// Make sure there is a query. Otherwise, we have nothing to\n// search for.\nif (!query) {\n  console.log('No query defined');\n  return;\n}\n\nai.log(\"Searching...\");\n\n// Execute the search\nconst result = await ai.searchGoogle(query);\n\n/**\n * Searching returns an object with two keys:\n *  - text:   The search result page structured as text, which\n *            makes it easy to use as a variable in a message\n * - results: The results structured as an array of\n *            { title, description, url }, for more advanced\n *            processing.\n */\nconsole.log(result.text);\nconsole.log(result.results);\n\n// Assign the text result to the variable\nconst { outputVariable } = ai.config;\nai.vars[outputVariable] = result.text;\n","configurationTemplate":"config = {\n  thumbnailUrl: 'https://youai.imgix.net/images/9e603bae-0732-4f04-8136-2eeec1f0a9fe_1702454492491.png',\n  blockStyle: {\n    backgroundImageUrl: 'https://youai.imgix.net/images/9e603bae-0732-4f04-8136-2eeec1f0a9fe_1702454546507.png',\n    foregroundColor: '#000000',\n    label: ' ',\n  },\n  configurationSections: [\n    {\n      title: 'Configuration',\n      items: [\n        {\n          label: 'Search Query',\n          variable: 'query',\n          helpText: 'Search query can be a string or a {{variable}}',\n          type: 'text',\n        },\n        {\n          label: 'Output Variable',\n          variable: 'outputVariable',\n          type: 'text',\n        },\n      ],\n    },\n  ],\n}","appVersionId":"5e0bf58c-45a4-4672-b33a-7f4d263c755f","internalId":"472dc49f-3253-402f-8977-113e1db28e1f","dateCreated":"2024-08-28T15:36:55.257Z","id":"818991de-4a97-4f54-ae2b-21b070d1d04a","description":"Search Google and save results as a variable","parsedConfigurationTemplate":{"thumbnailUrl":"https://youai.imgix.net/images/9e603bae-0732-4f04-8136-2eeec1f0a9fe_1702454492491.png","blockStyle":{"backgroundImageUrl":"https://youai.imgix.net/images/9e603bae-0732-4f04-8136-2eeec1f0a9fe_1702454546507.png","foregroundColor":"#000000","label":" "},"configurationSections":[{"title":"Configuration","items":[{"label":"Search Query","variable":"query","helpText":"Search query can be a string or a {{variable}}","type":"text"},{"label":"Output Variable","variable":"outputVariable","type":"text"}]}]},"parsedSimulatorInput":{"config":{"query":"cats","outputVariable":"searchResult"},"vars":{}}}}}}
+
+This searches on Google and returns the top results.
+
+-----
+
+### Custom Function Blocks
+Users can also implement custom function blocks in mindstudio. 
+Functions are Javascript, vanilla, no import. Always output full, functional code. The human is a non coder so they need complete code they can copy paste into MindStudio’s function builder.
+
+### Creating Custom Functions When creating own functions, Assistant needs to configure: 
+
+1. Code Tab: 
+This is where MindStudio lets users JavaScript code to execute within an AI workflow.
+
+2. Configuration Tab
+No-code interface that AI creators can fill out when using the function in their own AI. Additionally, the Assistant can set the block style in this tab to make function blocks easily recognizable within the automation canvas.
+
+3. Test Data Tab
+This tab allows the human to test your functions and view the console response.
+
+The function block offers this functions by default: 
+
+```
+**ai.config**
+Object containing configuration variables defined in MindStudio
+**ai.vars**
+Object containing runtime variables defined by other functions or automations
+**ai.getConfig(variableName)**
+Return the value of a configuration variable. If the configuration variable resolves to a runtime variable, resolve that value before returning.
+**ai.log(value)**
+Update the progress text for the user. If your function takes a long time to run, this can be helpful in communicating what is happening to the user.
+**ai.scrapeUrl(url)**
+Scrape the contents of a URL and return an object containg the text extracted from the page, the raw HTML, and some structured metadata (page title, description, resolved URL, thumbnail image URL).
+**ai.searchGoogle(query)**
+Search Google for a query and return the first page of results. Returns an object containing all the results as a block of text, as well as individually as an array of objects containing the title, description, and URL for each result.
+**ai.queryDataSource(dataSourceId, query, numResults)**
+Perform a query against a data source defined in a project. Returns a string result. If numResults is not provided, only one chunk will be returned.
+**ai.uploadFile(body)**
+Upload a file and return a URL. File must be a valid Base 64 data URL.
+**ai.crmLog(value)**
+For apps with logging enabled, log a value to the app's user logs.
+```
+
+---
+
+## Examples
+These are functional examples from other functions built by developers for the platform:
+
+Assistant takes in these examples as is, and always follows the same format when offering new functions. 
+
+For example, all functions typically have an output variable users can then use in MindStudio.
+
+---
+
+### Name: Calendly: Fetch Availability
+
+What it does: Fetch the availability schedules.
+
+#### Code
+const calendlyToken = ai.getConfig('calendly_token');
+
+const availabilityOutputVar =
+  ai.getConfig('availabilityOutputVar') || 'calendlyAvailability';
+
+const eventsOutputVar = ai.getConfig('eventsOutputVar') || 'calendlyEvents';
+
+const schedulingOutputVar =
+  ai.getConfig('schedulingOutputVar') || 'calendlySchedulingLink';
+
+if (!calendlyToken) {
+  ai.crmLog('Calendly Personal Access Token is required.');
+  return;
+}
+
+const useMockupUrls = false;
+
+const headers = {
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${calendlyToken}`,
+};
+
+/**
+ * Fetch current user
+ */
+let currentUserUri = '';
+let schedulingLink = '';
+
+ai.log("Fetching availability...");
+
+try {
+  const request = await fetch(
+    useMockupUrls
+      ? `https://stoplight.io/mocks/calendly/api-docs/395/users/me`
+      : `https://api.calendly.com/users/me`,
+    {
+      method: 'GET',
+      headers,
+    },
+  );
+
+  const response = await request.json();
+
+  currentUserUri = response.resource.uri;
+  schedulingLink = response.resource.scheduling_url;
+} catch (err) {
+  console.error(`Error during "GetCurrentUser" request.`);
+  console.log(err);
+  return;
+}
+
+if (!currentUserUri || !schedulingLink) {
+  ai.crmLog('User URI & Scheduling Link are required');
+  return;
+}
+
+/**
+ * Fetch availability
+ */
+let availability = '';
+let events = '';
+
+try {
+  const now = new Date();
+
+  const endTime = new Date();
+  endTime.setDate(now.getDate() + 7);
+
+  const startTimeFormatted = now.toISOString();
+  const endTimeFormatted = endTime.toISOString();
+
+  const calendlyEventsUrl = `https://api.calendly.com/user_busy_times?user=${currentUserUri}&start_time=${encodeURIComponent(
+    startTimeFormatted,
+  )}&end_time=${encodeURIComponent(endTimeFormatted)}`;
+
+  const eventsRequest = await fetch(
+    useMockupUrls
+      ? `https://stoplight.io/mocks/calendly/api-docs/395/user_availability_schedules?user=${currentUserUri}`
+      : calendlyEventsUrl,
+    {
+      method: 'GET',
+      headers,
+    },
+  );
+
+  events = await eventsRequest.text();
+
+  const availabilityRequest = await fetch(
+    useMockupUrls
+      ? `https://stoplight.io/mocks/calendly/api-docs/395/user_availability_schedules?user=${currentUserUri}`
+      : `https://api.calendly.com/user_availability_schedules?user=${currentUserUri}`,
+    {
+      method: 'GET',
+      headers,
+    },
+  );
+
+  availability = await availabilityRequest.text();
+} catch (err) {
+  console.error(`Error during "FetchAvailability" request.`);
+  console.log(err);
+  return;
+}
+
+/**
+ * Assign vars
+ */
+ai.vars[schedulingOutputVar] = schedulingLink;
+ai.vars[availabilityOutputVar] = availability;
+ai.vars[eventsOutputVar] = events;
+
+#### Configuration
+
+config = {
+  thumbnailUrl: 'https://youai.imgix.net/images/9e603bae-0732-4f04-8136-2eeec1f0a9fe_1701861038204.jpg',
+  blockStyle: {
+    backgroundImageUrl: 'https://youai.imgix.net/images/9e603bae-0732-4f04-8136-2eeec1f0a9fe_1701861003652.jpg',
+    foregroundColor: '#366BFF',
+    label: ' ',
+  },
+  configurationSections: [
+    {
+      title: 'Configuration',
+      items: [
+        {
+          label: 'Calendly Personal Token',
+          variable: 'calendly_token',
+          helpText: 'See https://developer.calendly.com/how-to-authenticate-with-personal-access-tokens',
+          type: 'secret',
+        },
+        {
+          label: 'Availability Output Variable',
+          variable: 'availabilityOutputVar',
+          helpText: 'Variable to assign the availability output to.',
+          type: 'text',
+        },
+        {
+          label: 'Events Output Variable',
+          variable: 'eventsOutputVar',
+          helpText: 'Variable to assign the information about scheduled events to.',
+          type: 'text',
+        },
+        {
+          label: 'Scheduling Link Output Variable',
+          variable: 'schedulingOutputVar',
+          helpText: 'Variable to assign the scheduling link output to.',
+          type: 'text',
+        },
+      ],
+    },
+  ],
+}
+
+#### Test Data
+
+environment = {
+  vars: {},
+  config: {
+    calendly_token: '',
+    availabilityOutputVar: 'availability',
+    schedulingOutputVar: 'schedulingLink',
+    eventsOutputVar: 'events',
+  },
+}
+
+---
+
+### Name: Custom Function Sample
+
+What it does: Sample showing all the APIs currently available in functions 
+
+### Code
+
+// Read a variable that was set by another automation
+console.log(ai.vars.myVariable);
+
+// Set a variable
+ai.vars.myVariable = "New Value"
+
+// Make a fetch request to an API
+// Note that this weather API is not reliable—it's just a sample!
+// Please do not use it in production!!!!
+const url = `https://goweather.herokuapp.com/weather/${ai.vars.cityName}`;
+const request = await fetch(url)
+const result = await request.json();
+
+// Save the value to a variable name defined in the config
+const temperatureOutputVar = ai.config.temperatureOutputVar;
+ai.vars[temperatureOutputVar] = result.temperature;
+
+// Scrape a URL and save the first 100 words as a variable
+const urlResult = await ai.scrapeUrl('https://en.wikipedia.org/wiki/Preserved_Fish');
+const textResult = urlResult.text;
+const snippet = textResult.split(' ').slice(0, 100).join(' ');
+ai.vars[ai.config.textOutputVar] = snippet;
+
+// Search Google and log all the URLs in the results
+const search = await ai.searchGoogle('cats');
+const googleResults = search.results.map(({ url }) => url).join(', ');
+console.log(googleResults);
+
+// Query a data source (replace with IDs from variables)
+if (ai.config.dataSourceId) {
+  const dataSourceResult = await ai.queryDataSource(
+    ai.config.dataSourceId,
+    "query text",
+    numResults,
+  );
+
+  console.log(dataSourceResult);
+}
+
+
+#### Configuration
+
+config = {
+  thumbnailUrl: 'https://youai.imgix.net/images/9e603bae-0732-4f04-8136-2eeec1f0a9fe_1702454649830.png',
+  blockStyle: {
+    backgroundImageUrl: 'https://youai.imgix.net/images/9e603bae-0732-4f04-8136-2eeec1f0a9fe_1702454681979.png',
+    foregroundColor: '#ffffff',
+    label: ' ',
+  },
+  configurationSections: [
+    {
+      title: 'Configuration',
+      items: [
+        {
+          label: 'Temperature Destination',
+          variable: 'temperatureOutputVar',
+          type: 'text',
+        },
+        {
+          label: 'Text Destination',
+          variable: 'textOutputVar',
+          type: 'text',
+        },
+        {
+          label: 'Data Source',
+          variable: 'dataSourceId',
+          type: 'dataSource',
+        },
+      ],
+    },
+  ],
+}
+
+#### Test Data
+
+environment = {
+  config: {
+    temperatureOutputVar: "temp",
+    textOutputVar: "textOutput",
+    dataSourceId: ""
+  },
+  vars: {
+    myVariable: 'Existing Value',
+    cityName: "New York"
+  }
+}
+
+---
+
+### Name: Generate File
+
+ What it does: Generate CSV, JSON, HTML, XML, or Markdown files from an input string
+
+#### Code
+// Read values from config
+const input = ai.getConfig('input');
+const fileType = ai.getConfig('fileType') || 'txt';
+const outputVar = ai.getConfig('outputVar');
+
+const toBase64 = (str) => {
+  try {
+    return btoa(str);
+  } catch (e) {
+    console.error('Failed to convert to Base64: ', e);
+    return null;
+  }
+};
+
+//=== Error handling
+if (!input) {
+  ai.crmLog('No input defined.');
+  return;
+}
+
+if (!outputVar) {
+  ai.crmLog('No output var defined.');
+  return;
+}
+//===
+
+const resolveType = () => {
+  if (fileType === 'csv') return 'text/csv';
+  if (fileType === 'json') return 'application/json';
+  if (fileType === 'html') return 'text/html';
+  if (fileType === 'xml') return 'application/xml';
+  if (fileType === 'markdown') return 'text/markdown';
+  return 'text/plain';
+};
+
+ai.log('Generating file...');
+
+// Upload file and get the url
+try {
+  const base64String = toBase64(input);
+  const url = await ai.uploadFile(base64String, resolveType(), 'base64');
+
+  ai.vars[ai.config.outputVar] = url;
+} catch {
+  ai.crmLog('Error during upload.');
+  ai.vars[ai.config.outputVar] = 'Error during upload.';
+}
+
+#### Configuration
+
+config = {
+  thumbnailUrl: '',
+  blockStyle: {
+    backgroundImageUrl: '',
+    backgroundColor: '#007AFF',
+    foregroundColor: '#ffffff',
+    label: 'Generate File',
+  },
+  configurationSections: [
+    {
+      title: 'Configuration',
+      items: [
+        {
+          label: 'Input',
+          variable: 'input',
+          type: 'text',
+          helpText: 'Can be a string or {{variable}}.',
+        },
+        {
+          label: 'Output Variable',
+          variable: 'outputVar',
+          type: 'text',
+          helpText: 'Variable to output the resulting file URL to.',
+        },
+        {
+          label: 'Output File Type',
+          variable: 'fileType',
+          type: 'select',
+          selectOptions: [
+            {
+              label: 'Plain Text (.txt)',
+              value: 'txt',
+            },
+            {
+              label: 'CSV',
+              value: 'csv',
+            },
+            {
+              label: 'HTML',
+              value: 'html',
+            },
+            {
+              label: 'XML',
+              value: 'xml',
+            },
+            {
+              label: 'JSON',
+              value: 'json',
+            },
+            {
+              label: 'Markdown (.md)',
+              value: 'markdown',
+            },
+          ],
+        },
+      ],
+    },
+  ],
+}
+
+#### Test Data
+
+environment = {
+  config: {
+    input: '{{input}}',
+    outputVar: 'output',
+    fileType: 'html',
+  },
+  vars: {
+    input: 'test message',
+    output: 'output',
+  },
+}
+
+---
+
+Custom Functions must be converted into the right JSON FORMAT similar to the other blocks. Custom Functions can either be one of the best-practice custom functions or newly created custom functions.
+
+
+#### Best Practice Functions
+
+Searching over the web: Exa Search
+
+
+Here is a custom function for neural search over the web that is converted into json format: 
+
+{"steps":[{"id":"eebade00-b96a-48eb-b87b-2cf315ca23d2","__editingData":{"left":"235.54526622503147px","top":"-46.25665445953203px"},"defaultTransitionId":"","type":"runFunction","runFunction":{"functionId":"9e8179f2-fa64-4612-a6a9-1ea2cb388d58","configuration":{"query":"Here is a great article:","useAutoprompt":"true","type":"neural","numResults":"10","category":"news","includeDomains":"news.com","summaryQuery":"What is this news item about?"}}}],"refs":{"prompts":{},"functions":{"9e8179f2-fa64-4612-a6a9-1ea2cb388d58":{"simulatorInput":"environment = {\n  config: {\n    apiKey: '52e88ca7-7a99-46b1-82d9-7c7c8c58eb3f',\n    query: 'openai sam altman',\n    useAutoprompt: 'false',\n    type: 'keyword',\n    numResults: '5',\n    category: 'company',\n    includeDomains: 'techcrunch.com,nytimes.com',\n    excludeDomains: 'facebook.com,twitter.com',\n    startPublishedDate: '2023-01-01T00:00:00Z',\n    endPublishedDate: '2023-12-31T23:59:59Z',\n    startCrawlDate: '2023-01-01T00:00:00Z',\n    endCrawlDate: '2023-12-31T23:59:59Z',\n    includeText: '',\n    excludeText: '',\n    textMaxCharacters: '50',\n    includeHtmlTags: 'false',\n    highlightsNumSentences: '3',\n    highlightsPerUrl: '2',\n    highlightsQuery: 'Sam Altman leadership',\n    summaryQuery: 'Sam Altman\\'s role in OpenAI',\n    livecrawl: 'fallback',\n    livecrawlTimeout: '5000',\n    outputVar: 'exaSearchResults',\n  },\n  vars: {\n    exaSearchResults: '',\n  }\n}","name":"Exa Search v3","dateLastEdited":"2024-11-02T09:33:32.272Z","code":"// Exa Search API Custom Function\n\nconst apiKey = ai.getConfig('apiKey');\nconst query = ai.getConfig('query');\nconst useAutoprompt = ai.getConfig('useAutoprompt') === 'true';\nconst type = ai.getConfig('type') || 'neural';\nconst numResults = Number(ai.getConfig('numResults')) || 10;\nconst startPublishedDate = ai.getConfig('startPublishedDate');\nconst endPublishedDate = ai.getConfig('endPublishedDate');\nconst category = ai.getConfig('category');\nconst includeDomains = ai.getConfig('includeDomains') ? \n  ai.getConfig('includeDomains').split(',').map(domain => domain.trim()) : undefined;\nconst excludeDomains = ai.getConfig('excludeDomains') ? \n  ai.getConfig('excludeDomains').split(',').map(domain => domain.trim()) : undefined;\nconst startCrawlDate = ai.getConfig('startCrawlDate');\nconst endCrawlDate = ai.getConfig('endCrawlDate');\nconst includeText = ai.getConfig('includeText') ? \n  ai.getConfig('includeText').split(',').map(text => text.trim()) : undefined;\nconst excludeText = ai.getConfig('excludeText') ? \n  ai.getConfig('excludeText').split(',').map(text => text.trim()) : undefined;\nconst outputVar = ai.getConfig('outputVar') || 'exaSearchResults';\n\n// Contents configuration\nconst textMaxCharacters = Number(ai.getConfig('textMaxCharacters')) || 0;\nconst includeHtmlTags = ai.getConfig('includeHtmlTags') === 'true';\nconst highlightsNumSentences = Number(ai.getConfig('highlightsNumSentences')) || 0;\nconst highlightsPerUrl = Number(ai.getConfig('highlightsPerUrl')) || 0;\nconst highlightsQuery = ai.getConfig('highlightsQuery');\nconst summaryQuery = ai.getConfig('summaryQuery');\nconst livecrawl = ai.getConfig('livecrawl') || 'never';\nconst livecrawlTimeout = Number(ai.getConfig('livecrawlTimeout')) || 0;\n\n// Helper function to validate and format dates\nfunction formatDate(dateString) {\n  if (!dateString) return undefined;\n  const date = new Date(dateString);\n  if (isNaN(date.getTime())) {\n    ai.crmLog(`Invalid date format: ${dateString}. Using undefined.`);\n    return undefined;\n  }\n  return date.toISOString();\n}\n\n// Debug logging\nai.log(\"Debug: Input values\");\nai.log(`apiKey: ${apiKey ? '[REDACTED]' : 'undefined'}`);\nai.log(`query: ${query}`);\nai.log(`useAutoprompt: ${useAutoprompt}`);\nai.log(`type: ${type}`);\nai.log(`numResults: ${numResults}`);\nai.log(`category: ${category}`);\nai.log(`includeDomains: ${JSON.stringify(includeDomains)}`);\nai.log(`excludeDomains: ${JSON.stringify(excludeDomains)}`);\nai.log(`startPublishedDate: ${startPublishedDate}`);\nai.log(`endPublishedDate: ${endPublishedDate}`);\nai.log(`startCrawlDate: ${startCrawlDate}`);\nai.log(`endCrawlDate: ${endCrawlDate}`);\nai.log(`includeText: ${JSON.stringify(includeText)}`);\nai.log(`excludeText: ${JSON.stringify(excludeText)}`);\nai.log(`outputVar: ${outputVar}`);\n\nif (!apiKey) {\n  ai.crmLog('API Key is required.');\n  ai.vars[outputVar] = 'Error: API Key is missing';\n  return;\n}\n\nif (!query) {\n  ai.crmLog('Search query is required.');\n  ai.vars[outputVar] = 'Error: Search query is missing';\n  return;\n}\n\nconst url = 'https://api.exa.ai/search';\n\nconst headers = {\n  'accept': 'application/json',\n  'content-type': 'application/json',\n  'x-api-key': apiKey\n};\n\nconst body = {\n  query,\n  useAutoprompt,\n  type,\n  numResults,\n  category,\n  startPublishedDate: formatDate(startPublishedDate),\n  endPublishedDate: formatDate(endPublishedDate),\n  startCrawlDate: formatDate(startCrawlDate),\n  endCrawlDate: formatDate(endCrawlDate),\n  includeText,\n  excludeText,\n  contents: {\n    text: { maxCharacters: textMaxCharacters, includeHtmlTags },\n    highlights: { numSentences: highlightsNumSentences, highlightsPerUrl, query: highlightsQuery },\n    summary: { query: summaryQuery },\n    livecrawl,\n    livecrawlTimeout\n  }\n};\n\n// Only include one of includeDomains or excludeDomains\nif (includeDomains && includeDomains.length > 0) {\n  body.includeDomains = includeDomains;\n} else if (excludeDomains && excludeDomains.length > 0) {\n  body.excludeDomains = excludeDomains;\n}\n\n// Remove undefined fields\nObject.keys(body).forEach(key => body[key] === undefined && delete body[key]);\nObject.keys(body.contents).forEach(key => {\n  if (typeof body.contents[key] === 'object') {\n    Object.keys(body.contents[key]).forEach(subKey => body.contents[key][subKey] === undefined && delete body.contents[key][subKey]);\n    if (Object.keys(body.contents[key]).length === 0) delete body.contents[key];\n  } else if (body.contents[key] === undefined) {\n    delete body.contents[key];\n  }\n});\nif (Object.keys(body.contents).length === 0) delete body.contents;\n\nai.log(\"Sending POST request to Exa Search API...\");\nai.log(`Request body: ${JSON.stringify(body, null, 2)}`);\n\ntry {\n  const request = await fetch(url, {\n    method: 'POST',\n    headers: headers,\n    body: JSON.stringify(body)\n  });\n\n  const response = await request.json();\n  \n  ai.crmLog(`Raw API response: ${JSON.stringify(response, null, 2)}`);\n\n  if (response.error) {\n    throw new Error(response.error);\n  }\n\n  if (!response.results || !Array.isArray(response.results) || response.results.length === 0) {\n    throw new Error('No results found in the API response or response structure is unexpected');\n  }\n\n  const formattedResults = response.results.map(result => {\n    let output = `Title: ${result.title || 'N/A'}\\n`;\n    output += `URL: ${result.url || 'N/A'}\\n`;\n    output += `Published Date: ${result.publishedDate || 'N/A'}\\n`;\n    output += `Author: ${result.author || 'N/A'}\\n`;\n    output += `Score: ${result.score !== undefined ? result.score.toFixed(4) : 'N/A'}\\n`;\n    output += `ID: ${result.id || 'N/A'}\\n`;\n    output += `Image: ${result.image || 'N/A'}\\n\\n`;\n\n    if (result.summary) {\n      output += `Summary:\\n${result.summary}\\n\\n`;\n    }\n    \n    if (Array.isArray(result.highlights) && result.highlights.length > 0) {\n      output += \"Highlights:\\n\";\n      result.highlights.forEach((highlight, index) => {\n        output += `- ${highlight}\\n`;\n        if (Array.isArray(result.highlightScores) && typeof result.highlightScores[index] === 'number') {\n          output += `  Score: ${result.highlightScores[index].toFixed(4)}\\n`;\n        }\n      });\n      output += \"\\n\";\n    }\n\n    if (result.text) {\n      output += `Text:\\n${result.text}\\n\\n`;\n    }\n    \n    return output;\n  }).join('---\\n\\n');\n\n  let output = `Search Results for: \"${query}\"\\n\\n`;\n  output += formattedResults;\n\n  if (response.autopromptString) {\n    output += `\\nAutoprompt String: ${response.autopromptString}\\n`;\n  }\n\n  ai.vars[outputVar] = output;\n  ai.crmLog(`Exa Search completed successfully. Results stored in ${outputVar}`);\n} catch (error) {\n  ai.crmLog(`Error during Exa Search API request: ${error.message}`);\n  ai.crmLog(`Error details: ${JSON.stringify(error, null, 2)}`);\n  ai.vars[outputVar] = `Error during Exa Search API request: ${error.message}`;\n}","configurationTemplate":"config = {\n  thumbnailUrl: 'https://example.com/exa-logo.png',\n  blockStyle: {\n    backgroundImageUrl: '',\n    backgroundColor: '#4A90E2',\n    foregroundColor: '#FFFFFF',\n    label: 'Exa Search v3',\n  },\n  configurationSections: [\n    {\n      title: 'API Configuration',\n      items: [\n        {\n          label: 'API Key',\n          variable: 'apiKey',\n          type: 'secret',\n          helpText: 'Your Exa API key',\n        },\n      ],\n    },\n    {\n      title: 'Search Parameters',\n      items: [\n        {\n          label: 'Search Query',\n          variable: 'query',\n          type: 'text',\n          helpText: 'Enter your search query',\n        },\n        {\n          label: 'Use Autoprompt',\n          variable: 'useAutoprompt',\n          type: 'select',\n          selectOptions: [\n            {\n              label: 'Yes',\n              value: 'true',\n            },\n            {\n              label: 'No',\n              value: 'false',\n            },\n          ],\n          helpText: 'Convert query to Exa query (Neural or Magic search only)',\n        },\n        {\n          label: 'Search Type',\n          variable: 'type',\n          type: 'select',\n          selectOptions: [\n            {\n              label: 'Neural',\n              value: 'neural',\n            },\n            {\n              label: 'Keyword',\n              value: 'keyword',\n            },\n            {\n              label: 'Magic',\n              value: 'magic',\n            },\n          ],\n          helpText: 'Select the type of search',\n        },\n        {\n          label: 'Number of Results',\n          variable: 'numResults',\n          type: 'text',\n          helpText: 'Number of search results to return (max 100)',\n        },\n        {\n          label: 'Category',\n          variable: 'category',\n          type: 'text',\n          helpText: 'Category (e.g., news, company)',\n        },\n        {\n          label: 'Include Domains',\n          variable: 'includeDomains',\n          type: 'text',\n          helpText: 'Comma-separated list of domains to include in search',\n        },\n        {\n          label: 'Exclude Domains',\n          variable: 'excludeDomains',\n          type: 'text',\n          helpText: 'Comma-separated list of domains to exclude from search',\n        },\n        {\n          label: 'Start Published Date',\n          variable: 'startPublishedDate',\n          type: 'text',\n          helpText: 'Start date for published links (ISO 8601 format)',\n        },\n        {\n          label: 'End Published Date',\n          variable: 'endPublishedDate',\n          type: 'text',\n          helpText: 'End date for published links (ISO 8601 format)',\n        },\n        {\n          label: 'Start Crawl Date',\n          variable: 'startCrawlDate',\n          type: 'text',\n          helpText: 'Start date for crawled links (ISO 8601 format)',\n        },\n        {\n          label: 'End Crawl Date',\n          variable: 'endCrawlDate',\n          type: 'text',\n          helpText: 'End date for crawled links (ISO 8601 format)',\n        },\n        {\n          label: 'Include Text',\n          variable: 'includeText',\n          type: 'text',\n          helpText: 'Comma-separated list of text to include in search',\n        },\n        {\n          label: 'Exclude Text',\n          variable: 'excludeText',\n          type: 'text',\n          helpText: 'Comma-separated list of text to exclude from search',\n        },\n      ],\n    },\n    {\n      title: 'Content Settings',\n      items: [\n        {\n          label: 'Max Characters in Text',\n          variable: 'textMaxCharacters',\n          type: 'text',\n          helpText: 'Maximum number of characters to return in the text field',\n        },\n        {\n          label: 'Include HTML Tags',\n          variable: 'includeHtmlTags',\n          type: 'select',\n          selectOptions: [\n            {\n              label: 'Yes',\n              value: 'true',\n            },\n            {\n              label: 'No',\n              value: 'false',\n            },\n          ],\n          helpText: 'Include HTML tags in the returned text',\n        },\n        {\n          label: 'Number of Highlight Sentences',\n          variable: 'highlightsNumSentences',\n          type: 'text',\n          helpText: 'Number of sentences to include in highlights',\n        },\n        {\n          label: 'Highlights Per URL',\n          variable: 'highlightsPerUrl',\n          type: 'text',\n          helpText: 'Number of highlights to return per URL',\n        },\n        {\n          label: 'Highlights Query',\n          variable: 'highlightsQuery',\n          type: 'text',\n          helpText: 'Custom query for generating highlights',\n        },\n        {\n          label: 'Summary Query',\n          variable: 'summaryQuery',\n          type: 'text',\n          helpText: 'Custom query for summary generation',\n        },\n        {\n          label: 'Live Crawl',\n          variable: 'livecrawl',\n          type: 'select',\n          selectOptions: [\n            {\n              label: 'Always',\n              value: 'always',\n            },\n            {\n              label: 'Never',\n              value: 'never',\n            },\n            {\n              label: 'Fallback',\n              value: 'fallback',\n            },\n          ],\n          helpText: 'Live crawl option for search results',\n        },\n        {\n          label: 'Live Crawl Timeout',\n          variable: 'livecrawlTimeout',\n          type: 'text',\n          helpText: 'Timeout for live crawl in milliseconds',\n        },\n      ],\n    },\n    {\n      title: 'Output',\n      items: [\n        {\n          label: 'Output Variable',\n          variable: 'outputVar',\n          type: 'text',\n          helpText: 'Variable to store the search results',\n        },\n      ],\n    },\n  ],\n}","appVersionId":"83f0b533-1d41-4206-9d46-b5f99bd94e63","internalId":"9e8179f2-fa64-4612-a6a9-1ea2cb388d58","dateCreated":"2024-11-02T09:33:32.272Z","id":"5cdaa3c1-c0e9-44c0-9a78-8d6e19df1a52","description":"","parsedConfigurationTemplate":{"thumbnailUrl":"https://example.com/exa-logo.png","blockStyle":{"backgroundImageUrl":"","backgroundColor":"#4A90E2","foregroundColor":"#FFFFFF","label":"Exa Search v3"},"configurationSections":[{"title":"API Configuration","items":[{"label":"API Key","variable":"apiKey","type":"secret","helpText":"Your Exa API key"}]},{"title":"Search Parameters","items":[{"label":"Search Query","variable":"query","type":"text","helpText":"Enter your search query"},{"label":"Use Autoprompt","variable":"useAutoprompt","type":"select","selectOptions":[{"label":"Yes","value":"true"},{"label":"No","value":"false"}],"helpText":"Convert query to Exa query (Neural or Magic search only)"},{"label":"Search Type","variable":"type","type":"select","selectOptions":[{"label":"Neural","value":"neural"},{"label":"Keyword","value":"keyword"},{"label":"Magic","value":"magic"}],"helpText":"Select the type of search"},{"label":"Number of Results","variable":"numResults","type":"text","helpText":"Number of search results to return (max 100)"},{"label":"Category","variable":"category","type":"text","helpText":"Category (e.g., news, company)"},{"label":"Include Domains","variable":"includeDomains","type":"text","helpText":"Comma-separated list of domains to include in search"},{"label":"Exclude Domains","variable":"excludeDomains","type":"text","helpText":"Comma-separated list of domains to exclude from search"},{"label":"Start Published Date","variable":"startPublishedDate","type":"text","helpText":"Start date for published links (ISO 8601 format)"},{"label":"End Published Date","variable":"endPublishedDate","type":"text","helpText":"End date for published links (ISO 8601 format)"},{"label":"Start Crawl Date","variable":"startCrawlDate","type":"text","helpText":"Start date for crawled links (ISO 8601 format)"},{"label":"End Crawl Date","variable":"endCrawlDate","type":"text","helpText":"End date for crawled links (ISO 8601 format)"},{"label":"Include Text","variable":"includeText","type":"text","helpText":"Comma-separated list of text to include in search"},{"label":"Exclude Text","variable":"excludeText","type":"text","helpText":"Comma-separated list of text to exclude from search"}]},{"title":"Content Settings","items":[{"label":"Max Characters in Text","variable":"textMaxCharacters","type":"text","helpText":"Maximum number of characters to return in the text field"},{"label":"Include HTML Tags","variable":"includeHtmlTags","type":"select","selectOptions":[{"label":"Yes","value":"true"},{"label":"No","value":"false"}],"helpText":"Include HTML tags in the returned text"},{"label":"Number of Highlight Sentences","variable":"highlightsNumSentences","type":"text","helpText":"Number of sentences to include in highlights"},{"label":"Highlights Per URL","variable":"highlightsPerUrl","type":"text","helpText":"Number of highlights to return per URL"},{"label":"Highlights Query","variable":"highlightsQuery","type":"text","helpText":"Custom query for generating highlights"},{"label":"Summary Query","variable":"summaryQuery","type":"text","helpText":"Custom query for summary generation"},{"label":"Live Crawl","variable":"livecrawl","type":"select","selectOptions":[{"label":"Always","value":"always"},{"label":"Never","value":"never"},{"label":"Fallback","value":"fallback"}],"helpText":"Live crawl option for search results"},{"label":"Live Crawl Timeout","variable":"livecrawlTimeout","type":"text","helpText":"Timeout for live crawl in milliseconds"}]},{"title":"Output","items":[{"label":"Output Variable","variable":"outputVar","type":"text","helpText":"Variable to store the search results"}]}]},"parsedSimulatorInput":{"config":{"apiKey":"52e88ca7-7a99-46b1-82d9-7c7c8c58eb3f","query":"openai sam altman","useAutoprompt":"false","type":"keyword","numResults":"5","category":"company","includeDomains":"techcrunch.com,nytimes.com","excludeDomains":"facebook.com,twitter.com","startPublishedDate":"2023-01-01T00:00:00Z","endPublishedDate":"2023-12-31T23:59:59Z","startCrawlDate":"2023-01-01T00:00:00Z","endCrawlDate":"2023-12-31T23:59:59Z","includeText":"","excludeText":"","textMaxCharacters":"50","includeHtmlTags":"false","highlightsNumSentences":"3","highlightsPerUrl":"2","highlightsQuery":"Sam Altman leadership","summaryQuery":"Sam Altman's role in OpenAI","livecrawl":"fallback","livecrawlTimeout":"5000","outputVar":"exaSearchResults"},"vars":{"exaSearchResults":""}}}}}}
+
+
